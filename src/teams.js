@@ -41,7 +41,7 @@ function buildDailyCard(stateData, baseUrl, skipInfo = null) {
     presented.length > 0
       ? presented.map((p) => ({
           type: 'TextBlock',
-          text: `✅ ~~${p}~~`,
+          text: `✅ ${p}`,
           color: 'Good',
           size: 'Small',
           spacing: 'None',
@@ -116,8 +116,7 @@ function buildDailyCard(stateData, baseUrl, skipInfo = null) {
         ],
       },
 
-      { type: 'Separator' },
-
+      
       ...skipNotice,
 
       // Current presenter spotlight
@@ -166,24 +165,11 @@ function buildDailyCard(stateData, baseUrl, skipInfo = null) {
         weight: 'Bolder',
         isSubtle: true,
         spacing: 'Medium',
+        separator: true,
       },
       ...remainingItems,
     ],
-
-    actions: [
-      {
-        type: 'Action.OpenUrl',
-        title: '✅ Concluído',
-        url: `${baseUrl}/actions/next`,
-        style: 'positive',
-      },
-      {
-        type: 'Action.OpenUrl',
-        title: '⏭ Pular',
-        url: `${baseUrl}/actions/skip`,
-        style: 'default',
-      },
-    ],
+    
   };
 }
 
@@ -216,6 +202,7 @@ function buildCompletionCard(stateData) {
         weight: 'Bolder',
         size: 'Large',
         color: 'Good',
+        separator: true,
       },
       {
         type: 'TextBlock',
@@ -224,8 +211,7 @@ function buildCompletionCard(stateData) {
         size: 'Small',
         spacing: 'None',
       },
-      { type: 'Separator' },
-      {
+            {
         type: 'TextBlock',
         text: 'PULADOS HOJE',
         size: 'Small',
