@@ -1,0 +1,22 @@
+{
+  "name": "daily-standup-bot",
+  "version": "1.0.0",
+  "description": "Daily standup automation with Microsoft Teams integration",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.2",
+    "node-cron": "^3.0.3",
+    "fs-extra": "^11.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
