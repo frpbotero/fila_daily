@@ -1,208 +1,104 @@
-const fs = require('fs-extra');
-const path = require('path');
+// Estado em memória — sem dependência de filesystem (compatível com Render free tier)
 
-const DATA_FILE = path.join(__dirname, '..', 'data', 'state.json');
-
-const DEFAULT_STATE = {
+const DEFAULT = () => ({
   participants: [],
   currentOrder: [],
   currentIndex: 0,
   dailyActive: false,
   skips: [],
   history: [],
-};
+});
 
 class DailyState {
   constructor() {
-    this._state = this._load();
+    this._s = DEFAULT();
   }
-
-  _load() {
-    try {
-      if (fs.existsSync(DATA_FILE)) {
-        return { ...DEFAULT_STATE, ...fs.readJsonSync(DATA_FILE) };
-      }
-    } catch {
-      /* ignore */
-    }
-    return { ...DEFAULT_STATE };
-  }
-
-  _save() {
-    try {
-      fs.ensureDirSync(path.dirname(DATA_FILE));
-      fs.writeJsonSync(DATA_FILE, this._state, { spaces: 2 });
-    } catch (e) {
-      console.error('Erro ao salvar estado:', e.message);
-    }
-  }
-
-  // ---------- Participants ----------
 
   addParticipant(name) {
-    const normalized = name.trim();
-    const already = this._state.participants.find(
-      (p) => p.toLowerCase() === normalized.toLowerCase()
-    );
-    if (already) return { success: false, reason: 'Participante já existe' };
-
-    this._state.participants.push(normalized);
-    this._state.participants.sort((a, b) =>
-      a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })
-    );
-
-    // If no active daily, keep currentOrder in sync
-    if (!this._state.dailyActive) {
-      this._state.currentOrder = [...this._state.participants];
-    }
-
-    this._save();
+    const n = name.trim();
+    if (this._s.participants.find(p => p.toLowerCase() === n.toLowerCase()))
+      return { success: false, reason: 'Participante já existe' };
+    this._s.participants.push(n);
+    this._s.participants.sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+    if (!this._s.dailyActive) this._s.currentOrder = [...this._s.participants];
     return { success: true };
   }
 
   removeParticipant(name) {
-    const idx = this._state.participants.findIndex(
-      (p) => p.toLowerCase() === name.toLowerCase()
-    );
+    const idx = this._s.participants.findIndex(p => p.toLowerCase() === name.toLowerCase());
     if (idx === -1) return { success: false, reason: 'Participante não encontrado' };
-
-    this._state.participants.splice(idx, 1);
-
-    // Remove from currentOrder too
-    const orderIdx = this._state.currentOrder.findIndex(
-      (p) => p.toLowerCase() === name.toLowerCase()
-    );
-    if (orderIdx !== -1) {
-      this._state.currentOrder.splice(orderIdx, 1);
-      // If removed someone before currentIndex, adjust pointer
-      if (orderIdx < this._state.currentIndex) {
-        this._state.currentIndex = Math.max(0, this._state.currentIndex - 1);
-      }
+    this._s.participants.splice(idx, 1);
+    const oi = this._s.currentOrder.findIndex(p => p.toLowerCase() === name.toLowerCase());
+    if (oi !== -1) {
+      this._s.currentOrder.splice(oi, 1);
+      if (oi < this._s.currentIndex) this._s.currentIndex = Math.max(0, this._s.currentIndex - 1);
     }
-
-    this._save();
     return { success: true };
   }
 
-  // ---------- Daily flow ----------
-
   startDaily() {
-    this._state.currentOrder = [...this._state.participants].sort((a, b) =>
+    this._s.currentOrder = [...this._s.participants].sort((a, b) =>
       a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })
     );
-    this._state.currentIndex = 0;
-    this._state.dailyActive = true;
-    this._state.skips = [];
-    this._save();
+    this._s.currentIndex = 0;
+    this._s.dailyActive = true;
+    this._s.skips = [];
     return this.getState();
   }
 
   getCurrentPresenter() {
-    const { currentOrder, currentIndex, dailyActive } = this._state;
+    const { currentOrder, currentIndex, dailyActive } = this._s;
     if (!dailyActive || currentOrder.length === 0) return null;
     return currentOrder[currentIndex] || null;
   }
 
   next() {
-    const { currentOrder, currentIndex } = this._state;
     const current = this.getCurrentPresenter();
-
     if (!current) return { done: true, reason: 'Nenhuma daily ativa' };
-
-    // Log to history
-    this._state.history.push({
-      date: new Date().toISOString(),
-      presenter: current,
-      action: 'presented',
-    });
-
-    if (currentIndex >= currentOrder.length - 1) {
-      // All done → reset
+    this._s.history.push({ date: new Date().toISOString(), presenter: current, action: 'presented' });
+    if (this._s.currentIndex >= this._s.currentOrder.length - 1) {
       this._reset();
       return { done: true };
     }
-
-    this._state.currentIndex += 1;
-    this._save();
+    this._s.currentIndex += 1;
     return { done: false, presenter: this.getCurrentPresenter() };
   }
 
-  /**
-   * Skip current presenter with justification.
-   * Skipped person moves to the position right after the next person.
-   * [A, B, C, D] skip A → [B, A, C, D] (B presents, then A, then C, D)
-   */
   skip(justification) {
     const current = this.getCurrentPresenter();
     if (!current) return null;
-
-    const { currentOrder, currentIndex } = this._state;
-
-    this._state.skips.push({
-      name: current,
-      justification,
-      time: new Date().toISOString(),
-    });
-
-    this._state.history.push({
-      date: new Date().toISOString(),
-      presenter: current,
-      action: 'skipped',
-      justification,
-    });
-
-    // Remove from current position
-    this._state.currentOrder.splice(currentIndex, 1);
-
-    // Insert after the next person (currentIndex now points to next person)
+    const { currentIndex } = this._s;
+    this._s.skips.push({ name: current, justification, time: new Date().toISOString() });
+    this._s.history.push({ date: new Date().toISOString(), presenter: current, action: 'skipped', justification });
+    this._s.currentOrder.splice(currentIndex, 1);
     const insertAt = currentIndex + 1;
-    if (insertAt >= this._state.currentOrder.length) {
-      this._state.currentOrder.push(current);
-    } else {
-      this._state.currentOrder.splice(insertAt, 0, current);
-    }
-
-    // currentIndex stays the same → now points to the next person
-    this._save();
-
-    return {
-      skipped: current,
-      next: this.getCurrentPresenter(),
-      newOrder: this._state.currentOrder,
-    };
+    if (insertAt >= this._s.currentOrder.length) this._s.currentOrder.push(current);
+    else this._s.currentOrder.splice(insertAt, 0, current);
+    return { skipped: current, next: this.getCurrentPresenter(), newOrder: this._s.currentOrder };
   }
 
   _reset() {
-    this._state.currentOrder = [...this._state.participants].sort((a, b) =>
+    this._s.currentOrder = [...this._s.participants].sort((a, b) =>
       a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })
     );
-    this._state.currentIndex = 0;
-    this._state.dailyActive = false;
-    this._state.skips = [];
-    this._save();
+    this._s.currentIndex = 0;
+    this._s.dailyActive = false;
+    this._s.skips = [];
   }
 
-  resetManual() {
-    this._reset();
-    return this.getState();
-  }
+  resetManual() { this._reset(); return this.getState(); }
 
   getState() {
-    const { currentOrder, currentIndex, dailyActive, participants, skips } = this._state;
+    const { currentOrder, currentIndex, dailyActive, participants, skips } = this._s;
     const current = this.getCurrentPresenter();
-    const presented = dailyActive ? currentOrder.slice(0, currentIndex) : [];
-    const remaining = dailyActive
-      ? currentOrder.slice(currentIndex + 1)
-      : currentOrder.slice(1);
-
     return {
       participants,
       currentOrder,
       currentIndex,
       dailyActive,
       current,
-      presented,
-      remaining,
+      presented: dailyActive ? currentOrder.slice(0, currentIndex) : [],
+      remaining: dailyActive ? currentOrder.slice(currentIndex + 1) : currentOrder.slice(1),
       skips,
       total: currentOrder.length,
       progress: dailyActive ? currentIndex + 1 : 0,
@@ -210,7 +106,7 @@ class DailyState {
   }
 
   getHistory(limit = 50) {
-    return this._state.history.slice(-limit).reverse();
+    return this._s.history.slice(-limit).reverse();
   }
 }
 
