@@ -253,9 +253,9 @@ async function postToTeams(card) {
   }
 
   try {
-    // Formato para Power Automate HTTP trigger
+    // Power Automate espera o card como string JSON serializada
     // No fluxo, use: @{triggerBody()?['content']} no campo do card
-    const payload = { content: card };
+    const payload = { content: JSON.stringify(card) };
 
     await axios.post(WEBHOOK_URL, payload, {
       headers: { 'Content-Type': 'application/json' },
