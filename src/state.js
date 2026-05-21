@@ -86,6 +86,21 @@ class DailyState {
     this._s.skips = [];
   }
 
+  moveParticipant(name, toIndex) {
+    const from = this._s.currentOrder.findIndex(
+      p => p.toLowerCase() === name.toLowerCase()
+    );
+    if (from === -1) return { success: false, reason: 'Participante não encontrado' };
+    if (toIndex < 0 || toIndex >= this._s.currentOrder.length)
+      return { success: false, reason: 'Posição inválida' };
+    if (toIndex < this._s.currentIndex)
+      return { success: false, reason: 'Não é possível mover para antes do atual' };
+
+    const [person] = this._s.currentOrder.splice(from, 1);
+    this._s.currentOrder.splice(toIndex, 0, person);
+    return { success: true };
+  }
+
   resetManual() { this._reset(); return this.getState(); }
 
   getState() {

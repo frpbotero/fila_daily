@@ -358,10 +358,15 @@
         let cls = isDone ? 'done' : isCurrent ? 'current' : '';
         let badgeCls = isDone ? 'badge-done' : isCurrent ? 'badge-current' : isSkipped ? 'badge-skipped' : 'badge-next';
         let badgeContent = isDone ? '✓' : isCurrent ? '🎤' : isSkipped ? '⏭' : (i + 1);
+        const canMove = !isDone && !isCurrent && s.dailyActive;
         return `<li class="queue-item ${cls}">
           <div class="queue-badge ${badgeCls}">${badgeContent}</div>
           <span class="queue-name">${name}</span>
           ${isSkipped ? '<span class="skip-tag">pulado</span>' : ''}
+          ${canMove ? `
+            <button class="del-btn" title="Subir" onclick="moveParticipant('${encodeURIComponent(name)}', ${i - 1})" ${i <= s.currentIndex + 1 ? 'disabled' : ''}>↑</button>
+            <button class="del-btn" title="Descer" onclick="moveParticipant('${encodeURIComponent(name)}', ${i + 1})" ${i >= s.currentOrder.length - 1 ? 'disabled' : ''}>↓</button>
+          ` : ''}
         </li>`;
       }).join('');
     }
@@ -451,6 +456,13 @@
     const res = await api('POST', '/api/skip', { justification: j });
     if (res.error) return toast('❌ ' + res.error, true);
     toast(`⏭ ${res.skipped} pulado(a). Vez de ${res.next}.`);
+    loadState();
+  }
+
+  async function moveParticipant(name, toIndex) {
+    const res = await api('POST', '/api/reorder', { name: decodeURIComponent(name), toIndex });
+    if (res.error) return toast('❌ ' + res.error, true);
+    toast('↕ Ordem atualizada');
     loadState();
   }
 

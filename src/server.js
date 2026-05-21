@@ -100,6 +100,16 @@ app.post('/api/reset', (req, res) => {
   res.json({ success: true, state: newState });
 });
 
+/** POST /api/reorder — move a participant to a new position */
+app.post('/api/reorder', (req, res) => {
+  const { name, toIndex } = req.body;
+  if (!name || toIndex === undefined)
+    return res.status(400).json({ error: 'name e toIndex são obrigatórios' });
+  const result = state.moveParticipant(name, Number(toIndex));
+  if (!result.success) return res.status(400).json({ error: result.reason });
+  res.json({ success: true, state: state.getState() });
+});
+
 // ─────────────────────────────────────────────
 //  Action pages (opened via Teams card buttons)
 // ─────────────────────────────────────────────
