@@ -74,7 +74,7 @@ function buildDailyCard(stateData, baseUrl, skipInfo = null) {
   return {
     type: 'AdaptiveCard',
     $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-    version: '1.4',
+    version: '1.2',
     body: [
       // Header
       {
@@ -108,7 +108,6 @@ function buildDailyCard(stateData, baseUrl, skipInfo = null) {
                 type: 'TextBlock',
                 text: buildProgressBar(progress, total),
                 size: 'Small',
-                fontType: 'Monospace',
                 isSubtle: true,
                 horizontalAlignment: 'Right',
               },
@@ -124,7 +123,6 @@ function buildDailyCard(stateData, baseUrl, skipInfo = null) {
       // Current presenter spotlight
       {
         type: 'Container',
-        style: 'emphasis',
         items: [
           {
             type: 'TextBlock',
@@ -142,7 +140,6 @@ function buildDailyCard(stateData, baseUrl, skipInfo = null) {
             spacing: 'None',
           },
         ],
-        bleed: true,
         spacing: 'Medium',
       },
 
@@ -211,7 +208,7 @@ function buildCompletionCard(stateData) {
   return {
     type: 'AdaptiveCard',
     $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-    version: '1.4',
+    version: '1.2',
     body: [
       {
         type: 'TextBlock',
@@ -256,23 +253,16 @@ async function postToTeams(card) {
   }
 
   try {
-    const payload = {
-      type: 'message',
-      attachments: [
-        {
-          contentType: 'application/vnd.microsoft.card.adaptive',
-          contentUrl: null,
-          content: card,
-        },
-      ],
-    };
+    // Formato para Power Automate HTTP trigger
+    // No fluxo, use: @{triggerBody()?['content']} no campo do card
+    const payload = { content: card };
 
     await axios.post(WEBHOOK_URL, payload, {
       headers: { 'Content-Type': 'application/json' },
       timeout: 10000,
     });
 
-    console.log('✅ Card enviado ao Teams');
+    console.log('✅ Card enviado ao Teams via Power Automate');
     return true;
   } catch (err) {
     console.error('❌ Erro ao enviar ao Teams:', err.response?.data || err.message);

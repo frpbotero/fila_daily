@@ -1,0 +1,34 @@
+{
+  "participants": [
+    "Ana",
+    "Bruno",
+    "Carlos"
+  ],
+  "currentOrder": [
+    "Bruno",
+    "Ana",
+    "Carlos"
+  ],
+  "currentIndex": 1,
+  "dailyActive": true,
+  "skips": [
+    {
+      "name": "Ana",
+      "justification": "Ausente hoje",
+      "time": "2026-05-21T14:31:18.997Z"
+    }
+  ],
+  "history": [
+    {
+      "date": "2026-05-21T14:31:18.998Z",
+      "presenter": "Ana",
+      "action": "skipped",
+      "justification": "Ausente hoje"
+    },
+    {
+      "date": "2026-05-21T14:31:18.999Z",
+      "presenter": "Bruno",
+      "action": "presented"
+    }
+  ]
+}
