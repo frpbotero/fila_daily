@@ -1,1 +1,5 @@
 node_modules/*
+data/daily.db
+data/daily.db-shm
+data/daily.db-wal
+.env

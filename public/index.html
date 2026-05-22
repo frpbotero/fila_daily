@@ -35,7 +35,7 @@
     .status-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
-    main { max-width: 900px; margin: 0 auto; padding: 1.5rem; display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem; display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem; }
     @media (max-width: 720px) { main { grid-template-columns: 1fr; } }
 
     .card {
@@ -56,13 +56,13 @@
       align-items: center;
       gap: 0.5rem;
     }
+    .card-header-actions { margin-left: auto; display: flex; gap: 0.4rem; }
 
     /* Current presenter */
     .presenter-card { grid-column: 1; }
     .presenter-body { padding: 2rem 1.5rem; text-align: center; }
     .presenter-label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
     .presenter-name { font-size: 2.4rem; font-weight: 700; color: var(--accent); margin-bottom: 1.5rem; }
-    .presenter-name.done { color: var(--green); font-size: 1.6rem; }
     .presenter-name.empty { color: var(--muted); font-size: 1.2rem; }
 
     .progress-bar { background: var(--border); border-radius: 99px; height: 6px; margin-bottom: 0.4rem; overflow: hidden; }
@@ -89,6 +89,11 @@
     .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--muted); }
     .btn-success { background: var(--green); color: #000; }
     .btn-success:hover:not(:disabled) { opacity: 0.85; }
+    .btn-icon {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 0.2rem 0.35rem; border-radius: 4px; font-size: 0.85rem;
+    }
+    .btn-icon:hover { color: var(--text); background: rgba(255,255,255,0.06); }
 
     /* Queue */
     .queue-list { list-style: none; }
@@ -107,9 +112,7 @@
       width: 22px; height: 22px;
       border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.7rem;
-      font-weight: 700;
-      flex-shrink: 0;
+      font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
     }
     .badge-done { background: rgba(63,185,80,0.15); color: var(--green); }
     .badge-current { background: var(--accent); color: #000; }
@@ -121,36 +124,21 @@
     /* Participants panel */
     .add-form { display: flex; gap: 0.5rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
     .add-form input {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
-      padding: 0.5rem 0.75rem;
-      font-size: 0.875rem;
-      outline: none;
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); padding: 0.5rem 0.75rem; font-size: 0.875rem; outline: none;
     }
     .add-form input:focus { border-color: var(--accent); }
     .add-form button { padding: 0.5rem 0.875rem; font-size: 0.875rem; }
 
     .participant-item {
-      display: flex;
-      align-items: center;
-      padding: 0.65rem 1rem;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.875rem;
-      gap: 0.5rem;
+      display: flex; align-items: center;
+      padding: 0.65rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; gap: 0.5rem;
     }
     .participant-item:last-child { border-bottom: none; }
     .participant-item span { flex: 1; }
     .del-btn {
-      background: none;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 0.2rem 0.4rem;
-      border-radius: 4px;
-      font-size: 0.9rem;
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9rem;
     }
     .del-btn:hover { color: var(--red); background: rgba(248,81,73,0.1); }
 
@@ -159,61 +147,59 @@
     .skip-entry { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; line-height: 1.4; }
     .skip-entry strong { color: var(--yellow); }
 
+    /* Projects panel */
+    .project-item {
+      display: flex; align-items: center;
+      padding: 0.65rem 1rem; border-bottom: 1px solid var(--border);
+      gap: 0.5rem; cursor: pointer; font-size: 0.875rem; transition: background 0.15s;
+    }
+    .project-item:last-child { border-bottom: none; }
+    .project-item:hover { background: rgba(255,255,255,0.03); }
+    .project-item.active { background: rgba(88,166,255,0.08); border-left: 3px solid var(--accent); padding-left: calc(1rem - 3px); }
+    .project-item-name { flex: 1; font-weight: 600; }
+    .project-id-badge {
+      font-family: monospace; font-size: 0.72rem;
+      background: rgba(255,255,255,0.06); color: var(--muted);
+      padding: 0.15rem 0.45rem; border-radius: 4px; cursor: pointer;
+      border: 1px solid var(--border); user-select: all;
+    }
+    .project-id-badge:hover { color: var(--accent); border-color: var(--accent); }
+
     /* Toast */
     #toast {
       position: fixed; bottom: 1.5rem; right: 1.5rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
-      font-size: 0.875rem;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      z-index: 999;
-      transform: translateY(100px);
-      opacity: 0;
-      transition: all 0.25s;
-      max-width: 300px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.875rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 999;
+      transform: translateY(100px); opacity: 0; transition: all 0.25s; max-width: 300px;
     }
     #toast.show { transform: translateY(0); opacity: 1; }
 
-    /* Skip modal */
+    /* Modals */
     .overlay {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.7);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 100;
+      align-items: center; justify-content: center;
     }
     .overlay.show { display: flex; }
     .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 1.75rem;
-      width: 90%;
-      max-width: 400px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.75rem; width: 90%; max-width: 440px;
     }
     .modal h3 { margin-bottom: 0.25rem; font-size: 1.1rem; }
     .modal p { color: var(--muted); font-size: 0.85rem; margin-bottom: 1rem; }
-    .modal textarea {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      padding: 0.75rem;
-      font-size: 0.875rem;
-      resize: vertical;
-      min-height: 80px;
-      outline: none;
-      font-family: inherit;
-      margin-bottom: 1rem;
+    .modal textarea, .modal input[type="text"], .modal input[type="url"] {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 0.6rem 0.75rem;
+      font-size: 0.875rem; outline: none; font-family: inherit; margin-bottom: 0.75rem;
     }
-    .modal textarea:focus { border-color: var(--yellow); }
-    .modal .actions { justify-content: flex-end; }
+    .modal textarea { resize: vertical; min-height: 80px; }
+    .modal textarea:focus, .modal input:focus { border-color: var(--accent); }
+    .modal label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.3rem; }
+    .modal .actions { justify-content: flex-end; margin-top: 0.5rem; }
 
     .empty-state { padding: 1.5rem; text-align: center; color: var(--muted); font-size: 0.85rem; }
+    .no-project { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.95rem; }
   </style>
 </head>
 <body>
@@ -235,28 +221,15 @@
     <!-- Presenter card -->
     <div class="card presenter-card">
       <div class="card-header">🎙 Apresentando agora</div>
-      <div class="presenter-body">
-        <div class="presenter-label" id="presenterLabel">—</div>
-        <div class="presenter-name empty" id="presenterName">Nenhuma daily ativa</div>
-
-        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-        <div class="progress-text" id="progressText">0 / 0 participantes</div>
-
-        <div class="actions">
-          <button class="btn-primary" id="btnStart" onclick="startDaily()">▶ Iniciar Daily</button>
-          <button class="btn-success" id="btnNext" onclick="nextParticipant()" disabled>✅ Concluído</button>
-          <button class="btn-danger" id="btnSkip" onclick="openSkipModal()" disabled>⏭ Pular</button>
-          <button class="btn-ghost" onclick="resetDaily()">↺ Resetar</button>
-        </div>
+      <div class="presenter-body" id="presenterBody">
+        <div class="no-project">Selecione ou crie um projeto →</div>
       </div>
     </div>
 
     <!-- Queue -->
-    <div class="card">
+    <div class="card" id="queueCard" style="display:none">
       <div class="card-header">📋 Ordem da daily</div>
-      <ul class="queue-list" id="queueList">
-        <li class="empty-state">Nenhum participante na fila</li>
-      </ul>
+      <ul class="queue-list" id="queueList"></ul>
     </div>
 
     <!-- Skips log -->
@@ -266,17 +239,30 @@
     </div>
   </div>
 
-  <!-- Right: participants -->
+  <!-- Right sidebar -->
   <div style="display:flex;flex-direction:column;gap:1.25rem;">
+
+    <!-- Projects -->
     <div class="card">
+      <div class="card-header">
+        🗂 Projetos
+        <div class="card-header-actions">
+          <button class="btn-icon" title="Novo projeto" onclick="openProjectModal()">＋</button>
+        </div>
+      </div>
+      <div id="projectsList">
+        <div class="empty-state">Nenhum projeto cadastrado</div>
+      </div>
+    </div>
+
+    <!-- Participants -->
+    <div class="card" id="participantsCard" style="display:none">
       <div class="card-header">👥 Participantes</div>
       <div class="add-form">
         <input type="text" id="newName" placeholder="Nome do participante…" onkeydown="if(event.key==='Enter')addParticipant()" />
         <button class="btn-primary" onclick="addParticipant()">+</button>
       </div>
-      <div id="participantsList">
-        <div class="empty-state">Nenhum participante cadastrado</div>
-      </div>
+      <div id="participantsList"></div>
     </div>
   </div>
 </main>
@@ -294,11 +280,33 @@
   </div>
 </div>
 
+<!-- Project modal (create / edit) -->
+<div class="overlay" id="projectOverlay">
+  <div class="modal">
+    <h3 id="projectModalTitle">Novo Projeto</h3>
+    <p>Configure o nome e o webhook do Microsoft Teams.</p>
+    <input type="hidden" id="projectModalId" />
+    <label>Nome do projeto</label>
+    <input type="text" id="projectModalName" placeholder="Ex: Squad Alpha" />
+    <label>URL do Webhook (Teams)</label>
+    <input type="url" id="projectModalWebhook" placeholder="https://outlook.office.com/webhook/…" />
+    <label>Cron schedule (opcional — padrão: 0 9 * * 1-5)</label>
+    <input type="text" id="projectModalCron" placeholder="0 9 * * 1-5" />
+    <div class="actions">
+      <button class="btn-ghost" onclick="closeProjectModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveProject()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
   let currentState = null;
+  let currentProjectId = null;
+  let projects = [];
 
+  // ── API helper ──────────────────────────────────────────
   async function api(method, path, body) {
     const res = await fetch(path, {
       method,
@@ -308,60 +316,155 @@
     return res.json();
   }
 
-  async function loadState() {
+  // ── Projects ────────────────────────────────────────────
+  async function loadProjects() {
     try {
-      currentState = await api('GET', '/api/state');
-      renderState(currentState);
-    } catch (e) {
-      console.error(e);
+      projects = await api('GET', '/api/projects');
+      renderProjects();
+      if (!currentProjectId && projects.length > 0) selectProject(projects[0].id);
+    } catch (e) { console.error(e); }
+  }
+
+  function renderProjects() {
+    const el = document.getElementById('projectsList');
+    if (projects.length === 0) {
+      el.innerHTML = '<div class="empty-state">Nenhum projeto cadastrado</div>';
+      return;
     }
+    el.innerHTML = projects.map(p => `
+      <div class="project-item ${p.id === currentProjectId ? 'active' : ''}" onclick="selectProject('${p.id}')">
+        <span class="project-item-name">📁 ${esc(p.name)}</span>
+        <span class="project-id-badge" title="Clique para copiar" onclick="copyId(event,'${p.id}')">${p.id}</span>
+        <button class="btn-icon" title="Editar" onclick="event.stopPropagation();editProject('${p.id}')">✏️</button>
+        <button class="btn-icon" title="Excluir" onclick="event.stopPropagation();deleteProject('${p.id}','${esc(p.name)}')">🗑</button>
+      </div>
+    `).join('');
+  }
+
+  function copyId(evt, id) {
+    evt.stopPropagation();
+    navigator.clipboard.writeText(id).then(() => toast('📋 ID copiado: ' + id));
+  }
+
+  function selectProject(id) {
+    currentProjectId = id;
+    renderProjects();
+    document.getElementById('queueCard').style.display = '';
+    document.getElementById('participantsCard').style.display = '';
+    loadState();
+  }
+
+  function openProjectModal() {
+    document.getElementById('projectModalId').value = '';
+    document.getElementById('projectModalTitle').textContent = 'Novo Projeto';
+    document.getElementById('projectModalName').value = '';
+    document.getElementById('projectModalWebhook').value = '';
+    document.getElementById('projectModalCron').value = '';
+    document.getElementById('projectOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('projectModalName').focus(), 100);
+  }
+
+  function editProject(id) {
+    const p = projects.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('projectModalId').value = id;
+    document.getElementById('projectModalTitle').textContent = 'Editar Projeto';
+    document.getElementById('projectModalName').value = p.name;
+    document.getElementById('projectModalWebhook').value = p.webhookUrl;
+    document.getElementById('projectModalCron').value = p.cronSchedule || '';
+    document.getElementById('projectOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('projectModalName').focus(), 100);
+  }
+
+  function closeProjectModal() {
+    document.getElementById('projectOverlay').classList.remove('show');
+  }
+
+  async function saveProject() {
+    const id = document.getElementById('projectModalId').value;
+    const name = document.getElementById('projectModalName').value.trim();
+    const webhookUrl = document.getElementById('projectModalWebhook').value.trim();
+    const cronSchedule = document.getElementById('projectModalCron').value.trim() || undefined;
+
+    if (!name) return toast('❌ Nome é obrigatório', true);
+    if (!webhookUrl && !id) return toast('❌ Webhook URL é obrigatória', true);
+
+    let res;
+    if (id) {
+      res = await api('PUT', `/api/projects/${id}`, { name, webhookUrl: webhookUrl || undefined, cronSchedule });
+    } else {
+      res = await api('POST', '/api/projects', { name, webhookUrl, cronSchedule });
+    }
+
+    if (res.error) return toast('❌ ' + res.error, true);
+    closeProjectModal();
+    toast(id ? '✅ Projeto atualizado' : '✅ Projeto criado: ' + name);
+    await loadProjects();
+    if (!id) selectProject(res.id);
+  }
+
+  async function deleteProject(id, name) {
+    if (!confirm(`Excluir projeto "${name}"?\nTodos os participantes e histórico serão removidos.`)) return;
+    const res = await api('DELETE', `/api/projects/${id}`);
+    if (res.error) return toast('❌ ' + res.error, true);
+    toast('🗑 Projeto removido');
+    if (currentProjectId === id) {
+      currentProjectId = null;
+      currentState = null;
+      document.getElementById('presenterBody').innerHTML = '<div class="no-project">Selecione ou crie um projeto →</div>';
+      document.getElementById('queueCard').style.display = 'none';
+      document.getElementById('participantsCard').style.display = 'none';
+      document.getElementById('skipsCard').style.display = 'none';
+      document.getElementById('statusDot').className = 'status-dot';
+      document.getElementById('statusText').textContent = 'Inativa';
+    }
+    loadProjects();
+  }
+
+  // ── State ───────────────────────────────────────────────
+  async function loadState() {
+    if (!currentProjectId) return;
+    try {
+      currentState = await api('GET', `/api/projects/${currentProjectId}/state`);
+      renderState(currentState);
+    } catch (e) { console.error(e); }
   }
 
   function renderState(s) {
-    // Status dot
     document.getElementById('statusDot').className = 'status-dot' + (s.dailyActive ? ' active' : '');
     document.getElementById('statusText').textContent = s.dailyActive ? 'Daily ativa' : 'Inativa';
 
-    // Presenter
-    const nameEl = document.getElementById('presenterName');
-    const labelEl = document.getElementById('presenterLabel');
-    if (!s.dailyActive) {
-      nameEl.textContent = 'Nenhuma daily ativa';
-      nameEl.className = 'presenter-name empty';
-      labelEl.textContent = '—';
-    } else if (s.current) {
-      nameEl.textContent = s.current;
-      nameEl.className = 'presenter-name';
-      labelEl.textContent = `${s.progress}º de ${s.total}`;
-    }
-
-    // Progress
-    const pct = s.total > 0 ? (s.progress / s.total) * 100 : 0;
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressText').textContent = `${s.progress} / ${s.total} participantes`;
-
-    // Buttons
-    const active = s.dailyActive && !!s.current;
-    document.getElementById('btnStart').textContent = s.dailyActive ? '↺ Reiniciar' : '▶ Iniciar Daily';
-    document.getElementById('btnNext').disabled = !active;
-    document.getElementById('btnSkip').disabled = !active;
+    const body = document.getElementById('presenterBody');
+    body.innerHTML = `
+      <div class="presenter-label">${s.dailyActive && s.current ? `${s.progress}º de ${s.total}` : '—'}</div>
+      <div class="presenter-name ${s.dailyActive && s.current ? '' : 'empty'}">
+        ${s.dailyActive && s.current ? esc(s.current) : 'Nenhuma daily ativa'}
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${s.total > 0 ? (s.progress / s.total * 100) : 0}%"></div></div>
+      <div class="progress-text">${s.progress} / ${s.total} participantes</div>
+      <div class="actions">
+        <button class="btn-primary" onclick="startDaily()">${s.dailyActive ? '↺ Reiniciar' : '▶ Iniciar Daily'}</button>
+        <button class="btn-success" onclick="nextParticipant()" ${!s.dailyActive || !s.current ? 'disabled' : ''}>✅ Concluído</button>
+        <button class="btn-danger" onclick="openSkipModal()" ${!s.dailyActive || !s.current ? 'disabled' : ''}>⏭ Pular</button>
+        <button class="btn-ghost" onclick="resetDaily()">↺ Resetar</button>
+      </div>
+    `;
 
     // Queue
     const list = document.getElementById('queueList');
     if (s.currentOrder.length === 0) {
-      list.innerHTML = '<li class="empty-state">Nenhum participante</li>';
+      list.innerHTML = '<li class="empty-state">Nenhum participante na fila</li>';
     } else {
       list.innerHTML = s.currentOrder.map((name, i) => {
         const isDone = i < s.currentIndex;
         const isCurrent = s.dailyActive && i === s.currentIndex;
         const isSkipped = s.skips.some(sk => sk.name === name && i > s.currentIndex);
-        let cls = isDone ? 'done' : isCurrent ? 'current' : '';
-        let badgeCls = isDone ? 'badge-done' : isCurrent ? 'badge-current' : isSkipped ? 'badge-skipped' : 'badge-next';
-        let badgeContent = isDone ? '✓' : isCurrent ? '🎤' : isSkipped ? '⏭' : (i + 1);
+        const badgeCls = isDone ? 'badge-done' : isCurrent ? 'badge-current' : isSkipped ? 'badge-skipped' : 'badge-next';
+        const badgeContent = isDone ? '✓' : isCurrent ? '🎤' : isSkipped ? '⏭' : (i + 1);
         const canMove = !isDone && !isCurrent && s.dailyActive;
-        return `<li class="queue-item ${cls}">
+        return `<li class="queue-item ${isDone ? 'done' : isCurrent ? 'current' : ''}">
           <div class="queue-badge ${badgeCls}">${badgeContent}</div>
-          <span class="queue-name">${name}</span>
+          <span class="queue-name">${esc(name)}</span>
           ${isSkipped ? '<span class="skip-tag">pulado</span>' : ''}
           ${canMove ? `
             <button class="del-btn" title="Subir" onclick="moveParticipant('${encodeURIComponent(name)}', ${i - 1})" ${i <= s.currentIndex + 1 ? 'disabled' : ''}>↑</button>
@@ -378,7 +481,7 @@
     } else {
       pList.innerHTML = s.participants.map(p => `
         <div class="participant-item">
-          <span>👤 ${p}</span>
+          <span>👤 ${esc(p)}</span>
           <button class="del-btn" onclick="removeParticipant('${encodeURIComponent(p)}')" title="Remover">✕</button>
         </div>
       `).join('');
@@ -391,18 +494,20 @@
       skipsCard.style.display = '';
       skipLog.innerHTML = s.skips.map(sk => {
         const t = new Date(sk.time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        return `<div class="skip-entry"><strong>${sk.name}</strong> — ${sk.justification} <span style="color:var(--muted);font-size:0.75rem">(${t})</span></div>`;
+        return `<div class="skip-entry"><strong>${esc(sk.name)}</strong> — ${esc(sk.justification)} <span style="color:var(--muted);font-size:0.75rem">(${t})</span></div>`;
       }).join('');
     } else {
       skipsCard.style.display = 'none';
     }
   }
 
+  // ── Participants ────────────────────────────────────────
   async function addParticipant() {
+    if (!currentProjectId) return toast('❌ Selecione um projeto primeiro', true);
     const input = document.getElementById('newName');
     const name = input.value.trim();
     if (!name) return;
-    const res = await api('POST', '/api/participants', { name });
+    const res = await api('POST', `/api/projects/${currentProjectId}/participants`, { name });
     if (res.error) return toast('❌ ' + res.error, true);
     input.value = '';
     toast('✅ ' + name + ' adicionado(a)');
@@ -411,21 +516,22 @@
 
   async function removeParticipant(name) {
     if (!confirm(`Remover ${decodeURIComponent(name)}?`)) return;
-    const res = await api('DELETE', '/api/participants/' + name);
+    const res = await api('DELETE', `/api/projects/${currentProjectId}/participants/${name}`);
     if (res.error) return toast('❌ ' + res.error, true);
     toast('🗑 Participante removido');
     loadState();
   }
 
+  // ── Daily operations ────────────────────────────────────
   async function startDaily() {
-    const res = await api('POST', '/api/start');
+    const res = await api('POST', `/api/projects/${currentProjectId}/start`);
     if (res.error) return toast('❌ ' + res.error, true);
     toast('🚀 Daily iniciada! Card enviado ao Teams.');
     loadState();
   }
 
   async function nextParticipant() {
-    const res = await api('POST', '/api/next');
+    const res = await api('POST', `/api/projects/${currentProjectId}/next`);
     if (res.error) return toast('❌ ' + res.error, true);
     if (res.done) toast('🎉 Daily concluída!');
     else toast('✅ Próximo: ' + res.presenter);
@@ -453,14 +559,14 @@
     }
     document.getElementById('skipJustification').style.borderColor = '';
     closeSkipModal();
-    const res = await api('POST', '/api/skip', { justification: j });
+    const res = await api('POST', `/api/projects/${currentProjectId}/skip`, { justification: j });
     if (res.error) return toast('❌ ' + res.error, true);
     toast(`⏭ ${res.skipped} pulado(a). Vez de ${res.next}.`);
     loadState();
   }
 
   async function moveParticipant(name, toIndex) {
-    const res = await api('POST', '/api/reorder', { name: decodeURIComponent(name), toIndex });
+    const res = await api('POST', `/api/projects/${currentProjectId}/reorder`, { name: decodeURIComponent(name), toIndex });
     if (res.error) return toast('❌ ' + res.error, true);
     toast('↕ Ordem atualizada');
     loadState();
@@ -468,9 +574,16 @@
 
   async function resetDaily() {
     if (!confirm('Resetar a ordem da daily para alfabética?')) return;
-    await api('POST', '/api/reset');
+    await api('POST', `/api/projects/${currentProjectId}/reset`);
     toast('↺ Ordem resetada');
     loadState();
+  }
+
+  // ── Utilities ───────────────────────────────────────────
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   let toastTimer;
@@ -486,14 +599,15 @@
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'Escape') { closeSkipModal(); closeProjectModal(); }
+    if (!currentProjectId) return;
     if (e.key === 'n' || e.key === 'N') nextParticipant();
     if (e.key === 's' || e.key === 'S') openSkipModal();
-    if (e.key === 'Escape') closeSkipModal();
   });
 
-  // Auto-refresh every 15s
-  loadState();
-  setInterval(loadState, 15000);
+  // Boot
+  loadProjects();
+  setInterval(() => { if (currentProjectId) loadState(); }, 15000);
 </script>
 </body>
 </html>

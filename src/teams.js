@@ -1,7 +1,5 @@
 const axios = require('axios');
 
-const WEBHOOK_URL = process.env.TEAMS_WEBHOOK_URL;
-
 const WEEKDAYS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -21,7 +19,7 @@ function buildProgressBar(current, total) {
 /**
  * Main daily card — shows current presenter + queue
  */
-function buildDailyCard(stateData, baseUrl, skipInfo = null) {
+function buildDailyCard(stateData, baseUrl, projectId, skipInfo = null) {
   const { current, presented, remaining, skips, total, progress } = stateData;
   const { day, date } = formatDate();
 
@@ -71,6 +69,9 @@ function buildDailyCard(stateData, baseUrl, skipInfo = null) {
           },
         ];
 
+  const nextUrl = `${baseUrl}/actions/next?project=${projectId}`;
+  const skipUrl = `${baseUrl}/actions/skip?project=${projectId}`;
+
   return {
     type: 'AdaptiveCard',
     $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
@@ -116,7 +117,6 @@ function buildDailyCard(stateData, baseUrl, skipInfo = null) {
         ],
       },
 
-      
       ...skipNotice,
 
       // Current presenter spotlight
@@ -169,7 +169,18 @@ function buildDailyCard(stateData, baseUrl, skipInfo = null) {
       },
       ...remainingItems,
     ],
-    
+    actions: [
+      {
+        type: 'Action.OpenUrl',
+        title: '✅ Concluído',
+        url: nextUrl,
+      },
+      {
+        type: 'Action.OpenUrl',
+        title: '⏭ Pular',
+        url: skipUrl,
+      },
+    ],
   };
 }
 
@@ -211,7 +222,7 @@ function buildCompletionCard(stateData) {
         size: 'Small',
         spacing: 'None',
       },
-            {
+      {
         type: 'TextBlock',
         text: 'PULADOS HOJE',
         size: 'Small',
@@ -232,22 +243,17 @@ function buildCompletionCard(stateData) {
   };
 }
 
-async function postToTeams(card) {
-  if (!WEBHOOK_URL) {
-    console.warn('⚠️  TEAMS_WEBHOOK_URL não configurado — card não enviado ao Teams');
+async function postToTeams(card, webhookUrl) {
+  if (!webhookUrl) {
+    console.warn('⚠️  Webhook URL não configurado — card não enviado ao Teams');
     return false;
   }
 
   try {
-    // Power Automate espera o card como string JSON serializada
-    // No fluxo, use: @{triggerBody()?['content']} no campo do card
-    const payload = card;
-
-    await axios.post(WEBHOOK_URL, payload, {
+    await axios.post(webhookUrl, card, {
       headers: { 'Content-Type': 'application/json' },
       timeout: 10000,
     });
-
     console.log('✅ Card enviado ao Teams via Power Automate');
     return true;
   } catch (err) {
@@ -256,14 +262,14 @@ async function postToTeams(card) {
   }
 }
 
-async function postDailyCard(stateData, baseUrl, skipInfo = null) {
-  const card = buildDailyCard(stateData, baseUrl, skipInfo);
-  return postToTeams(card);
+async function postDailyCard(stateData, baseUrl, projectId, webhookUrl, skipInfo = null) {
+  const card = buildDailyCard(stateData, baseUrl, projectId, skipInfo);
+  return postToTeams(card, webhookUrl);
 }
 
-async function postDailyCompleted(stateData) {
+async function postDailyCompleted(stateData, webhookUrl) {
   const card = buildCompletionCard(stateData);
-  return postToTeams(card);
+  return postToTeams(card, webhookUrl);
 }
 
 module.exports = { postDailyCard, postDailyCompleted, buildDailyCard, buildCompletionCard };
