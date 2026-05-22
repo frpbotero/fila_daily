@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const cron = require('node-cron');
 
-const state = require('./state');
+const projectManager = require('./projects');
 const { postDailyCard, postDailyCompleted } = require('./teams');
 const { skipPage, successPage } = require('./pages');
 
@@ -13,120 +13,198 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 const PORT = process.env.PORT || 3000;
 const BASE_URL = (process.env.BASE_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
-const CRON_DAILY = process.env.CRON_DAILY || '0 9 * * 1-5'; // Mon–Fri at 09:00
+const CRON_DAILY = process.env.CRON_DAILY || '0 9 * * 1-5';
+const TZ = process.env.TZ || 'America/Sao_Paulo';
 
 // ─────────────────────────────────────────────
-//  REST API
+//  Cron management (per project)
 // ─────────────────────────────────────────────
 
-/** GET /api/state — current daily state */
-app.get('/api/state', (req, res) => {
-  res.json(state.getState());
+const cronTasks = new Map();
+
+function scheduleCron(project) {
+  stopCron(project.id);
+  const schedule = project.cronSchedule || CRON_DAILY;
+  if (!cron.validate(schedule)) return;
+  const task = cron.schedule(
+    schedule,
+    async () => {
+      const p = projectManager.get(project.id);
+      if (!p) return;
+      const s = p.dailyState.getState();
+      if (s.participants.length === 0) return;
+      const newState = p.dailyState.startDaily();
+      await postDailyCard(newState, BASE_URL, p.id, p.webhookUrl);
+      console.log(`✅ Daily automática iniciada: ${p.name}`);
+    },
+    { timezone: TZ }
+  );
+  cronTasks.set(project.id, task);
+}
+
+function stopCron(projectId) {
+  const existing = cronTasks.get(projectId);
+  if (existing) { existing.stop(); cronTasks.delete(projectId); }
+}
+
+// Schedule crons for all existing projects on startup
+for (const p of projectManager.list()) scheduleCron(p);
+
+// ─────────────────────────────────────────────
+//  Middleware: resolve project
+// ─────────────────────────────────────────────
+
+function resolveProject(req, res, next) {
+  const project = projectManager.get(req.params.id);
+  if (!project) return res.status(404).json({ error: 'Projeto não encontrado' });
+  req.project = project;
+  next();
+}
+
+// ─────────────────────────────────────────────
+//  Project CRUD
+// ─────────────────────────────────────────────
+
+app.get('/api/projects', (req, res) => {
+  res.json(projectManager.list());
 });
 
-/** GET /api/history — last 50 actions */
-app.get('/api/history', (req, res) => {
-  res.json(state.getHistory());
+app.post('/api/projects', (req, res) => {
+  const { name, webhookUrl, cronSchedule } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
+  if (!webhookUrl || !webhookUrl.trim()) return res.status(400).json({ error: 'Webhook URL é obrigatória' });
+  const project = projectManager.create(name, webhookUrl, cronSchedule);
+  scheduleCron(project);
+  res.status(201).json(project);
 });
 
-/** POST /api/participants — add participant */
-app.post('/api/participants', (req, res) => {
+app.get('/api/projects/:id', resolveProject, (req, res) => {
+  const { id, name, webhookUrl, cronSchedule } = req.project;
+  res.json({ id, name, webhookUrl, cronSchedule, state: req.project.dailyState.getState() });
+});
+
+app.put('/api/projects/:id', resolveProject, (req, res) => {
+  const { name, webhookUrl, cronSchedule } = req.body;
+  const updated = projectManager.update(req.params.id, { name, webhookUrl, cronSchedule });
+  if (cronSchedule !== undefined) scheduleCron(updated);
+  res.json(updated);
+});
+
+app.delete('/api/projects/:id', resolveProject, (req, res) => {
+  stopCron(req.params.id);
+  projectManager.delete(req.params.id);
+  res.json({ success: true });
+});
+
+// ─────────────────────────────────────────────
+//  Daily state routes (scoped per project)
+// ─────────────────────────────────────────────
+
+app.get('/api/projects/:id/state', resolveProject, (req, res) => {
+  res.json(req.project.dailyState.getState());
+});
+
+app.get('/api/projects/:id/history', resolveProject, (req, res) => {
+  res.json(req.project.dailyState.getHistory());
+});
+
+app.post('/api/projects/:id/participants', resolveProject, (req, res) => {
   const { name } = req.body;
-  if (!name || !name.trim()) {
-    return res.status(400).json({ error: 'Nome é obrigatório' });
-  }
-  const result = state.addParticipant(name.trim());
-  if (!result.success) {
-    return res.status(409).json({ error: result.reason });
-  }
-  res.json({ success: true, participants: state.getState().participants });
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
+  const result = req.project.dailyState.addParticipant(name.trim());
+  if (!result.success) return res.status(409).json({ error: result.reason });
+  res.json({ success: true, participants: req.project.dailyState.getState().participants });
 });
 
-/** DELETE /api/participants/:name — remove participant */
-app.delete('/api/participants/:name', (req, res) => {
-  const result = state.removeParticipant(decodeURIComponent(req.params.name));
-  if (!result.success) {
-    return res.status(404).json({ error: result.reason });
-  }
-  res.json({ success: true, participants: state.getState().participants });
+app.delete('/api/projects/:id/participants/:name', resolveProject, (req, res) => {
+  const result = req.project.dailyState.removeParticipant(decodeURIComponent(req.params.name));
+  if (!result.success) return res.status(404).json({ error: result.reason });
+  res.json({ success: true, participants: req.project.dailyState.getState().participants });
 });
 
-/** POST /api/start — start (or restart) daily, posts card to Teams */
-app.post('/api/start', async (req, res) => {
-  if (state.getState().participants.length === 0) {
+app.post('/api/projects/:id/start', resolveProject, async (req, res) => {
+  const { dailyState, webhookUrl, id } = req.project;
+  if (dailyState.getState().participants.length === 0)
     return res.status(400).json({ error: 'Nenhum participante cadastrado' });
-  }
-  const newState = state.startDaily();
-  await postDailyCard(newState, BASE_URL);
+  const newState = dailyState.startDaily();
+  await postDailyCard(newState, BASE_URL, id, webhookUrl);
   res.json({ success: true, state: newState });
 });
 
-/** POST /api/next — mark current as done, advance to next */
-app.post('/api/next', async (req, res) => {
-  const current = state.getCurrentPresenter();
-  if (!current) {
-    return res.status(400).json({ error: 'Nenhuma daily ativa' });
-  }
-  const result = state.next();
+app.post('/api/projects/:id/next', resolveProject, async (req, res) => {
+  const { dailyState, webhookUrl, id } = req.project;
+  const current = dailyState.getCurrentPresenter();
+  if (!current) return res.status(400).json({ error: 'Nenhuma daily ativa' });
+  const result = dailyState.next();
   if (result.done) {
-    await postDailyCompleted(state.getState());
+    await postDailyCompleted(dailyState.getState(), webhookUrl);
   } else {
-    await postDailyCard(state.getState(), BASE_URL);
+    await postDailyCard(dailyState.getState(), BASE_URL, id, webhookUrl);
   }
-  res.json({ success: true, ...result, state: state.getState() });
+  res.json({ success: true, ...result, state: dailyState.getState() });
 });
 
-/** POST /api/skip — skip current presenter */
-app.post('/api/skip', async (req, res) => {
+app.post('/api/projects/:id/skip', resolveProject, async (req, res) => {
   const { justification } = req.body;
-  if (!justification || !justification.trim()) {
+  if (!justification || !justification.trim())
     return res.status(400).json({ error: 'Justificativa é obrigatória' });
-  }
-  const current = state.getCurrentPresenter();
-  if (!current) {
-    return res.status(400).json({ error: 'Nenhuma daily ativa' });
-  }
-  const result = state.skip(justification.trim());
-  await postDailyCard(state.getState(), BASE_URL, {
+  const { dailyState, webhookUrl, id } = req.project;
+  const current = dailyState.getCurrentPresenter();
+  if (!current) return res.status(400).json({ error: 'Nenhuma daily ativa' });
+  const result = dailyState.skip(justification.trim());
+  await postDailyCard(dailyState.getState(), BASE_URL, id, webhookUrl, {
     skipped: result.skipped,
     justification: justification.trim(),
   });
-  res.json({ success: true, ...result, state: state.getState() });
+  res.json({ success: true, ...result, state: dailyState.getState() });
 });
 
-/** POST /api/reset — manually reset order to alphabetical */
-app.post('/api/reset', (req, res) => {
-  const newState = state.resetManual();
+app.post('/api/projects/:id/reset', resolveProject, (req, res) => {
+  const newState = req.project.dailyState.resetManual();
   res.json({ success: true, state: newState });
 });
 
-/** POST /api/reorder — move a participant to a new position */
-app.post('/api/reorder', (req, res) => {
+app.post('/api/projects/:id/reorder', resolveProject, (req, res) => {
   const { name, toIndex } = req.body;
   if (!name || toIndex === undefined)
     return res.status(400).json({ error: 'name e toIndex são obrigatórios' });
-  const result = state.moveParticipant(name, Number(toIndex));
+  const result = req.project.dailyState.moveParticipant(name, Number(toIndex));
   if (!result.success) return res.status(400).json({ error: result.reason });
-  res.json({ success: true, state: state.getState() });
+  res.json({ success: true, state: req.project.dailyState.getState() });
 });
 
 // ─────────────────────────────────────────────
-//  Action pages (opened via Teams card buttons)
+//  Action pages (Teams card buttons)
 // ─────────────────────────────────────────────
 
-/** GET /actions/next — called when "Concluído" button is clicked in Teams */
+function getProjectFromQuery(req, res) {
+  const projectId = req.query.project;
+  if (!projectId) {
+    res.send(successPage('Projeto não especificado', 'Parâmetro ?project= ausente na URL.', '⚠️'));
+    return null;
+  }
+  const project = projectManager.get(projectId);
+  if (!project) {
+    res.send(successPage('Projeto não encontrado', `Projeto "${projectId}" não existe.`, '❌'));
+    return null;
+  }
+  return project;
+}
+
 app.get('/actions/next', async (req, res) => {
-  const current = state.getCurrentPresenter();
+  const project = getProjectFromQuery(req, res);
+  if (!project) return;
+
+  const { dailyState, webhookUrl, id } = project;
+  const current = dailyState.getCurrentPresenter();
   if (!current) {
-    return res.send(
-      successPage('Daily não ativa', 'Não há daily em andamento no momento.', 'ℹ️')
-    );
+    return res.send(successPage('Daily não ativa', 'Não há daily em andamento no momento.', 'ℹ️'));
   }
 
-  const result = state.next();
+  const result = dailyState.next();
 
   if (result.done) {
-    await postDailyCompleted(state.getState());
+    await postDailyCompleted(dailyState.getState(), webhookUrl);
     return res.send(
       successPage(
         'Daily concluída! 🎉',
@@ -136,7 +214,7 @@ app.get('/actions/next', async (req, res) => {
     );
   }
 
-  await postDailyCard(state.getState(), BASE_URL);
+  await postDailyCard(dailyState.getState(), BASE_URL, id, webhookUrl);
   res.send(
     successPage(
       'Próximo!',
@@ -146,35 +224,40 @@ app.get('/actions/next', async (req, res) => {
   );
 });
 
-/** GET /actions/skip — shows justification form */
 app.get('/actions/skip', (req, res) => {
-  const current = state.getCurrentPresenter();
+  const project = getProjectFromQuery(req, res);
+  if (!project) return;
+
+  const current = project.dailyState.getCurrentPresenter();
   if (!current) {
-    return res.send(
-      successPage('Daily não ativa', 'Não há daily em andamento.', 'ℹ️')
-    );
+    return res.send(successPage('Daily não ativa', 'Não há daily em andamento.', 'ℹ️'));
   }
   const error = req.query.error === '1';
-  res.send(skipPage(current, BASE_URL, error));
+  res.send(skipPage(current, BASE_URL, project.id, error));
 });
 
-/** POST /actions/skip — form submission from skip page */
 app.post('/actions/skip', async (req, res) => {
+  const projectId = req.query.project;
+  const project = projectId ? projectManager.get(projectId) : null;
+
+  if (!project) {
+    return res.send(successPage('Projeto não encontrado', 'Não foi possível identificar o projeto.', '❌'));
+  }
+
   const { justification } = req.body;
 
   if (!justification || !justification.trim()) {
-    return res.redirect('/actions/skip?error=1');
+    return res.redirect(`/actions/skip?project=${projectId}&error=1`);
   }
 
-  const current = state.getCurrentPresenter();
+  const { dailyState, webhookUrl, id } = project;
+  const current = dailyState.getCurrentPresenter();
   if (!current) {
-    return res.send(
-      successPage('Daily não ativa', 'Não há daily em andamento.', 'ℹ️')
-    );
+    return res.send(successPage('Daily não ativa', 'Não há daily em andamento.', 'ℹ️'));
   }
 
-  const result = state.skip(justification.trim());
-  await postDailyCard(state.getState(), BASE_URL, {
+  const result = dailyState.skip(justification.trim());
+  await postDailyCard(dailyState.getState(), BASE_URL, id, webhookUrl, {
     skipped: result.skipped,
     justification: justification.trim(),
   });
@@ -189,25 +272,6 @@ app.post('/actions/skip', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-//  Cron — auto-start daily Mon–Fri
-// ─────────────────────────────────────────────
-
-cron.schedule(
-  CRON_DAILY,
-  async () => {
-    console.log('⏰ Cron: iniciando daily automática...');
-    if (state.getState().participants.length === 0) {
-      console.warn('Nenhum participante cadastrado — daily não iniciada');
-      return;
-    }
-    const newState = state.startDaily();
-    await postDailyCard(newState, BASE_URL);
-    console.log('✅ Daily iniciada automaticamente');
-  },
-  { timezone: process.env.TZ || 'America/Sao_Paulo' }
-);
-
-// ─────────────────────────────────────────────
 //  Fallback SPA
 // ─────────────────────────────────────────────
 
@@ -216,7 +280,8 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
+  const projects = projectManager.list();
   console.log(`\n🚀 Daily Standup Bot rodando em ${BASE_URL}`);
-  console.log(`   Teams Webhook: ${process.env.TEAMS_WEBHOOK_URL ? '✅ configurado' : '❌ não configurado'}`);
-  console.log(`   Cron schedule: ${CRON_DAILY}\n`);
+  console.log(`   Projetos: ${projects.length}`);
+  console.log(`   Cron padrão: ${CRON_DAILY}\n`);
 });
