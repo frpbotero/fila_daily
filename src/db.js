@@ -6,7 +6,10 @@ async function connect() {
     console.warn('⚠️  MONGODB_URI não configurada — estado não será persistido');
     return;
   }
-  await mongoose.connect(uri);
+  await mongoose.connect(uri, {
+    tls: true,
+    serverSelectionTimeoutMS: 10000,
+  });
   console.log('✅ MongoDB conectado');
 }
 
