@@ -14,7 +14,7 @@ const skipSchema = new mongoose.Schema({
 }, { _id: false });
 
 const dailyStateSchema = new mongoose.Schema({
-  _id: { type: String, default: 'singleton' },
+  _id: { type: String },
   participants: [String],
   currentOrder: [String],
   currentIndex: { type: Number, default: 0 },

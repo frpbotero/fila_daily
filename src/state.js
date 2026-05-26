@@ -11,8 +11,13 @@ const DEFAULT = () => ({
 });
 
 class DailyState {
-  constructor() {
+  constructor(projectId) {
+    this.projectId = projectId;
     this._s = DEFAULT();
+  }
+
+  _sort(arr) {
+    return [...arr].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
   }
 
   addParticipant(name) {
@@ -38,9 +43,7 @@ class DailyState {
   }
 
   startDaily() {
-    this._s.currentOrder = [...this._s.participants].sort((a, b) =>
-      a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })
-    );
+    this._s.currentOrder = this._sort(this._s.participants);
     this._s.currentIndex = 0;
     this._s.dailyActive = true;
     this._s.skips = [];
@@ -79,30 +82,28 @@ class DailyState {
   }
 
   _reset() {
-    this._s.currentOrder = [...this._s.participants].sort((a, b) =>
-      a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })
-    );
+    this._s.currentOrder = this._sort(this._s.participants);
     this._s.currentIndex = 0;
     this._s.dailyActive = false;
     this._s.skips = [];
   }
 
   moveParticipant(name, toIndex) {
-    const from = this._s.currentOrder.findIndex(
-      p => p.toLowerCase() === name.toLowerCase()
-    );
+    const from = this._s.currentOrder.findIndex(p => p.toLowerCase() === name.toLowerCase());
     if (from === -1) return { success: false, reason: 'Participante não encontrado' };
     if (toIndex < 0 || toIndex >= this._s.currentOrder.length)
       return { success: false, reason: 'Posição inválida' };
     if (toIndex < this._s.currentIndex)
       return { success: false, reason: 'Não é possível mover para antes do atual' };
-
     const [person] = this._s.currentOrder.splice(from, 1);
     this._s.currentOrder.splice(toIndex, 0, person);
     return { success: true };
   }
 
-  resetManual() { this._reset(); return this.getState(); }
+  resetManual() {
+    this._reset();
+    return this.getState();
+  }
 
   getState() {
     const { currentOrder, currentIndex, dailyActive, participants, skips } = this._s;
@@ -127,7 +128,7 @@ class DailyState {
 
   async load() {
     if (mongoose.connection.readyState !== 1) return;
-    const doc = await DailyStateModel.findById('singleton').lean();
+    const doc = await DailyStateModel.findById(this.projectId).lean();
     if (doc) {
       this._s.participants = doc.participants ?? [];
       this._s.currentOrder = doc.currentOrder ?? [];
@@ -141,11 +142,11 @@ class DailyState {
   async save() {
     if (mongoose.connection.readyState !== 1) return;
     await DailyStateModel.findByIdAndUpdate(
-      'singleton',
-      { $set: this._s },
+      this.projectId,
+      { $set: { _id: this.projectId, ...this._s } },
       { upsert: true, new: true }
     );
   }
 }
 
-module.exports = new DailyState();
+module.exports = DailyState;

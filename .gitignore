@@ -1,2 +1,8 @@
 node_modules/*
+<<<<<<< HEAD
+=======
+data/daily.db
+data/daily.db-shm
+data/daily.db-wal
+>>>>>>> 9dad0a3ca990c33e4900f218e49bf8ec497b1d86
 .env

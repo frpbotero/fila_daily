@@ -1,13 +1,12 @@
 const mongoose = require('mongoose');
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
 async function connect() {
-  if (!MONGODB_URI) {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
     console.warn('⚠️  MONGODB_URI não configurada — estado não será persistido');
     return;
   }
-  await mongoose.connect(MONGODB_URI);
+  await mongoose.connect(uri);
   console.log('✅ MongoDB conectado');
 }
 

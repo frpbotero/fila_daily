@@ -1,4 +1,4 @@
-function skipPage(name, baseUrl, error = false) {
+function skipPage(name, baseUrl, projectId, error = false) {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -91,7 +91,7 @@ function skipPage(name, baseUrl, error = false) {
 
     ${error ? '<div class="error">⚠️ Justificativa é obrigatória para pular.</div>' : ''}
 
-    <form method="POST" action="${baseUrl}/actions/skip">
+    <form method="POST" action="${baseUrl}/actions/skip?project=${projectId}">
       <label for="just">Justificativa *</label>
       <textarea
         id="just"
