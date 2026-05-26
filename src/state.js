@@ -1,4 +1,5 @@
-// Estado em memória — sem dependência de filesystem (compatível com Render free tier)
+const mongoose = require('mongoose');
+const DailyStateModel = require('./models/DailyStateModel');
 
 const DEFAULT = () => ({
   participants: [],
@@ -122,6 +123,28 @@ class DailyState {
 
   getHistory(limit = 50) {
     return this._s.history.slice(-limit).reverse();
+  }
+
+  async load() {
+    if (mongoose.connection.readyState !== 1) return;
+    const doc = await DailyStateModel.findById('singleton').lean();
+    if (doc) {
+      this._s.participants = doc.participants ?? [];
+      this._s.currentOrder = doc.currentOrder ?? [];
+      this._s.currentIndex = doc.currentIndex ?? 0;
+      this._s.dailyActive = doc.dailyActive ?? false;
+      this._s.skips = doc.skips ?? [];
+      this._s.history = doc.history ?? [];
+    }
+  }
+
+  async save() {
+    if (mongoose.connection.readyState !== 1) return;
+    await DailyStateModel.findByIdAndUpdate(
+      'singleton',
+      { $set: this._s },
+      { upsert: true, new: true }
+    );
   }
 }
 

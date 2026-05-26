@@ -1,7 +1,9 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cron = require('node-cron');
 
+const db = require('./db');
 const state = require('./state');
 const { postDailyCard, postDailyCompleted } = require('./teams');
 const { skipPage, successPage } = require('./pages');
@@ -30,7 +32,7 @@ app.get('/api/history', (req, res) => {
 });
 
 /** POST /api/participants — add participant */
-app.post('/api/participants', (req, res) => {
+app.post('/api/participants', async (req, res) => {
   const { name } = req.body;
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -39,15 +41,17 @@ app.post('/api/participants', (req, res) => {
   if (!result.success) {
     return res.status(409).json({ error: result.reason });
   }
+  await state.save();
   res.json({ success: true, participants: state.getState().participants });
 });
 
 /** DELETE /api/participants/:name — remove participant */
-app.delete('/api/participants/:name', (req, res) => {
+app.delete('/api/participants/:name', async (req, res) => {
   const result = state.removeParticipant(decodeURIComponent(req.params.name));
   if (!result.success) {
     return res.status(404).json({ error: result.reason });
   }
+  await state.save();
   res.json({ success: true, participants: state.getState().participants });
 });
 
@@ -57,7 +61,7 @@ app.post('/api/start', async (req, res) => {
     return res.status(400).json({ error: 'Nenhum participante cadastrado' });
   }
   const newState = state.startDaily();
-  await postDailyCard(newState, BASE_URL);
+  await Promise.all([postDailyCard(newState, BASE_URL), state.save()]);
   res.json({ success: true, state: newState });
 });
 
@@ -68,11 +72,10 @@ app.post('/api/next', async (req, res) => {
     return res.status(400).json({ error: 'Nenhuma daily ativa' });
   }
   const result = state.next();
-  if (result.done) {
-    await postDailyCompleted(state.getState());
-  } else {
-    await postDailyCard(state.getState(), BASE_URL);
-  }
+  const teamsCall = result.done
+    ? postDailyCompleted(state.getState())
+    : postDailyCard(state.getState(), BASE_URL);
+  await Promise.all([teamsCall, state.save()]);
   res.json({ success: true, ...result, state: state.getState() });
 });
 
@@ -87,26 +90,28 @@ app.post('/api/skip', async (req, res) => {
     return res.status(400).json({ error: 'Nenhuma daily ativa' });
   }
   const result = state.skip(justification.trim());
-  await postDailyCard(state.getState(), BASE_URL, {
-    skipped: result.skipped,
-    justification: justification.trim(),
-  });
+  await Promise.all([
+    postDailyCard(state.getState(), BASE_URL, { skipped: result.skipped, justification: justification.trim() }),
+    state.save(),
+  ]);
   res.json({ success: true, ...result, state: state.getState() });
 });
 
 /** POST /api/reset — manually reset order to alphabetical */
-app.post('/api/reset', (req, res) => {
+app.post('/api/reset', async (req, res) => {
   const newState = state.resetManual();
+  await state.save();
   res.json({ success: true, state: newState });
 });
 
 /** POST /api/reorder — move a participant to a new position */
-app.post('/api/reorder', (req, res) => {
+app.post('/api/reorder', async (req, res) => {
   const { name, toIndex } = req.body;
   if (!name || toIndex === undefined)
     return res.status(400).json({ error: 'name e toIndex são obrigatórios' });
   const result = state.moveParticipant(name, Number(toIndex));
   if (!result.success) return res.status(400).json({ error: result.reason });
+  await state.save();
   res.json({ success: true, state: state.getState() });
 });
 
@@ -124,6 +129,7 @@ app.get('/actions/next', async (req, res) => {
   }
 
   const result = state.next();
+  await state.save();
 
   if (result.done) {
     await postDailyCompleted(state.getState());
@@ -174,10 +180,10 @@ app.post('/actions/skip', async (req, res) => {
   }
 
   const result = state.skip(justification.trim());
-  await postDailyCard(state.getState(), BASE_URL, {
-    skipped: result.skipped,
-    justification: justification.trim(),
-  });
+  await Promise.all([
+    postDailyCard(state.getState(), BASE_URL, { skipped: result.skipped, justification: justification.trim() }),
+    state.save(),
+  ]);
 
   res.send(
     successPage(
@@ -201,7 +207,7 @@ cron.schedule(
       return;
     }
     const newState = state.startDaily();
-    await postDailyCard(newState, BASE_URL);
+    await Promise.all([postDailyCard(newState, BASE_URL), state.save()]);
     console.log('✅ Daily iniciada automaticamente');
   },
   { timezone: process.env.TZ || 'America/Sao_Paulo' }
@@ -215,8 +221,13 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 Daily Standup Bot rodando em ${BASE_URL}`);
-  console.log(`   Teams Webhook: ${process.env.TEAMS_WEBHOOK_URL ? '✅ configurado' : '❌ não configurado'}`);
-  console.log(`   Cron schedule: ${CRON_DAILY}\n`);
-});
+(async () => {
+  await db.connect();
+  await state.load();
+  app.listen(PORT, () => {
+    console.log(`\n🚀 Daily Standup Bot rodando em ${BASE_URL}`);
+    console.log(`   MongoDB: ${process.env.MONGODB_URI ? '✅ configurado' : '⚠️  não configurado (estado em memória)'}`);
+    console.log(`   Teams Webhook: ${process.env.TEAMS_WEBHOOK_URL ? '✅ configurado' : '❌ não configurado'}`);
+    console.log(`   Cron schedule: ${CRON_DAILY}\n`);
+  });
+})();
