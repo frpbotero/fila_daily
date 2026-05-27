@@ -1,4 +1,4 @@
-function skipPage(name, baseUrl, projectId, error = false) {
+function skipPage(name, baseUrl, projectId, error = false, token = null) {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -92,6 +92,7 @@ function skipPage(name, baseUrl, projectId, error = false) {
     ${error ? '<div class="error">⚠️ Justificativa é obrigatória para pular.</div>' : ''}
 
     <form method="POST" action="${baseUrl}/actions/skip?project=${projectId}">
+      ${token ? `<input type="hidden" name="token" value="${token}">` : ''}
       <label for="just">Justificativa *</label>
       <textarea
         id="just"
@@ -165,4 +166,115 @@ function successPage(title, message, emoji = '✅') {
 </html>`;
 }
 
-module.exports = { skipPage, successPage };
+function setPresenterPage(current, state, baseUrl, projectId, error = false, token = null) {
+  const options = [state.current, ...state.remaining];
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trocar Apresentador</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .card {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    h1 { color: #ccd6f6; font-size: 1.4rem; margin-bottom: 0.25rem; }
+    .name { color: #a8b2d8; font-size: 1rem; margin-bottom: 1.5rem; }
+    .name strong { color: #fff; }
+    label {
+      display: block;
+      color: #8892b0;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    select {
+      width: 100%;
+      background: #0d1b2a;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      color: #ccd6f6;
+      font-size: 0.95rem;
+      padding: 0.75rem;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    select:focus { border-color: #7b68ee; }
+    .error {
+      background: rgba(233,69,96,0.1);
+      border: 1px solid #e94560;
+      border-radius: 8px;
+      color: #e94560;
+      font-size: 0.85rem;
+      padding: 0.6rem 0.8rem;
+      margin-bottom: 1rem;
+    }
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+    button {
+      flex: 1;
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    button:active { transform: scale(0.97); }
+    .btn-set { background: #7b68ee; color: #fff; }
+    .btn-set:hover { opacity: 0.9; }
+    .btn-cancel { background: #0f3460; color: #a8b2d8; }
+    .btn-cancel:hover { opacity: 0.8; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🎤</div>
+    <h1>Trocar Apresentador</h1>
+    <p class="name">Atual: <strong>${current}</strong></p>
+
+    ${error ? '<div class="error">⚠️ Selecione um participante.</div>' : ''}
+
+    <form method="POST" action="${baseUrl}/actions/set-presenter?project=${projectId}">
+      ${token ? `<input type="hidden" name="token" value="${token}">` : ''}
+      <label for="name">Quem apresenta agora?</label>
+      <select id="name" name="name" required autofocus>
+        <option value="">Selecione...</option>
+        ${options.map(p => `<option value="${p}"${p === current ? ' selected' : ''}>${p}</option>`).join('\n        ')}
+      </select>
+
+      <div class="actions">
+        <button type="button" class="btn-cancel" onclick="window.close()">Cancelar</button>
+        <button type="submit" class="btn-set">🎤 Trocar</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>`;
+}
+
+module.exports = { skipPage, successPage, setPresenterPage };

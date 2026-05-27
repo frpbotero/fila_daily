@@ -21,6 +21,8 @@ const dailyStateSchema = new mongoose.Schema({
   dailyActive: { type: Boolean, default: false },
   skips: [skipSchema],
   history: [historyEntrySchema],
+  lastDailyDate: { type: String, default: null },
+  cardToken: { type: String, default: null },
 });
 
 module.exports = mongoose.model('DailyState', dailyStateSchema);

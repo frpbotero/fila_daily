@@ -6,7 +6,7 @@ const cron = require('node-cron');
 const db = require('./db');
 const projectManager = require('./projects');
 const { postDailyCard, postDailyCompleted } = require('./teams');
-const { skipPage, successPage } = require('./pages');
+const { skipPage, successPage, setPresenterPage } = require('./pages');
 
 const app = express();
 app.use(express.json());
@@ -35,6 +35,8 @@ function scheduleCron(project) {
       if (!p) return;
       const s = p.dailyState.getState();
       if (s.participants.length === 0) return;
+      if (s.dailyActive) { console.log(`⚠️  Daily já em andamento: ${p.name}`); return; }
+      if (p.dailyState.hasStartedToday()) { console.log(`⚠️  Daily já enviada hoje: ${p.name}`); return; }
       const newState = p.dailyState.startDaily();
       await Promise.all([postDailyCard(newState, BASE_URL, p.id, p.webhookUrl), p.dailyState.save()]);
       console.log(`✅ Daily automática iniciada: ${p.name}`);
@@ -125,8 +127,13 @@ app.delete('/api/projects/:id/participants/:name', resolveProject, async (req, r
 
 app.post('/api/projects/:id/start', resolveProject, async (req, res) => {
   const { dailyState, webhookUrl, id } = req.project;
-  if (dailyState.getState().participants.length === 0)
+  const state = dailyState.getState();
+  if (state.participants.length === 0)
     return res.status(400).json({ error: 'Nenhum participante cadastrado' });
+  if (state.dailyActive)
+    return res.status(409).json({ error: 'Já existe uma daily em andamento' });
+  if (dailyState.hasStartedToday() && !req.body.force)
+    return res.status(409).json({ error: 'Daily já foi iniciada hoje', alreadyDoneToday: true });
   const newState = dailyState.startDaily();
   await Promise.all([postDailyCard(newState, BASE_URL, id, webhookUrl), dailyState.save()]);
   res.json({ success: true, state: newState });
@@ -175,6 +182,17 @@ app.post('/api/projects/:id/reorder', resolveProject, async (req, res) => {
   res.json({ success: true, state: req.project.dailyState.getState() });
 });
 
+app.post('/api/projects/:id/set-presenter', resolveProject, async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim())
+    return res.status(400).json({ error: 'name é obrigatório' });
+  const { dailyState, webhookUrl, id } = req.project;
+  const result = dailyState.setPresenter(name.trim());
+  if (!result.success) return res.status(400).json({ error: result.reason });
+  await Promise.all([postDailyCard(dailyState.getState(), BASE_URL, id, webhookUrl), dailyState.save()]);
+  res.json({ success: true, presenter: result.presenter, state: dailyState.getState() });
+});
+
 // ─────────────────────────────────────────────
 //  Action pages (Teams card buttons)
 // ─────────────────────────────────────────────
@@ -203,6 +221,12 @@ app.get('/actions/next', async (req, res) => {
     return res.send(successPage('Daily não ativa', 'Não há daily em andamento no momento.', 'ℹ️'));
   }
 
+  const { token } = req.query;
+  const state = dailyState.getState();
+  if (token && state.cardToken && token !== state.cardToken) {
+    return res.send(successPage('Card desatualizado', 'Este card já foi processado. Verifique o card mais recente no Teams.', 'ℹ️'));
+  }
+
   const result = dailyState.next();
   await dailyState.save();
 
@@ -227,8 +251,15 @@ app.get('/actions/skip', (req, res) => {
   if (!current) {
     return res.send(successPage('Daily não ativa', 'Não há daily em andamento.', 'ℹ️'));
   }
+
+  const { token } = req.query;
+  const state = project.dailyState.getState();
+  if (token && state.cardToken && token !== state.cardToken) {
+    return res.send(successPage('Card desatualizado', 'Este card já foi processado. Verifique o card mais recente no Teams.', 'ℹ️'));
+  }
+
   const error = req.query.error === '1';
-  res.send(skipPage(current, BASE_URL, project.id, error));
+  res.send(skipPage(current, BASE_URL, project.id, error, token));
 });
 
 app.post('/actions/skip', async (req, res) => {
@@ -239,7 +270,7 @@ app.post('/actions/skip', async (req, res) => {
     return res.send(successPage('Projeto não encontrado', 'Não foi possível identificar o projeto.', '❌'));
   }
 
-  const { justification } = req.body;
+  const { justification, token } = req.body;
   if (!justification || !justification.trim()) {
     return res.redirect(`/actions/skip?project=${projectId}&error=1`);
   }
@@ -248,6 +279,11 @@ app.post('/actions/skip', async (req, res) => {
   const current = dailyState.getCurrentPresenter();
   if (!current) {
     return res.send(successPage('Daily não ativa', 'Não há daily em andamento.', 'ℹ️'));
+  }
+
+  const state = dailyState.getState();
+  if (token && state.cardToken && token !== state.cardToken) {
+    return res.send(successPage('Card desatualizado', 'Este card já foi processado. Verifique o card mais recente no Teams.', 'ℹ️'));
   }
 
   const result = dailyState.skip(justification.trim());
@@ -261,6 +297,67 @@ app.post('/actions/skip', async (req, res) => {
       'Participante pulado',
       `<strong>${result.skipped}</strong> foi pulado(a).<br>Agora é a vez de <strong>${result.next}</strong>.<br>O card foi atualizado no Teams.`,
       '⏭'
+    )
+  );
+});
+
+app.get('/actions/set-presenter', (req, res) => {
+  const project = getProjectFromQuery(req, res);
+  if (!project) return;
+
+  const current = project.dailyState.getCurrentPresenter();
+  if (!current) {
+    return res.send(successPage('Daily não ativa', 'Não há daily em andamento.', 'ℹ️'));
+  }
+
+  const { token } = req.query;
+  const state = project.dailyState.getState();
+  if (token && state.cardToken && token !== state.cardToken) {
+    return res.send(successPage('Card desatualizado', 'Este card já foi processado. Verifique o card mais recente no Teams.', 'ℹ️'));
+  }
+
+  const error = req.query.error === '1';
+  res.send(setPresenterPage(current, state, BASE_URL, project.id, error, token));
+});
+
+app.post('/actions/set-presenter', async (req, res) => {
+  const projectId = req.query.project;
+  const project = projectId ? projectManager.get(projectId) : null;
+  if (!project) {
+    return res.send(successPage('Projeto não encontrado', 'Não foi possível identificar o projeto.', '❌'));
+  }
+
+  const { name, token } = req.body;
+  if (!name || !name.trim()) {
+    return res.redirect(`/actions/set-presenter?project=${projectId}&error=1`);
+  }
+
+  const { dailyState, webhookUrl, id } = project;
+  const current = dailyState.getCurrentPresenter();
+  if (!current) {
+    return res.send(successPage('Daily não ativa', 'Não há daily em andamento.', 'ℹ️'));
+  }
+
+  const state = dailyState.getState();
+  if (token && state.cardToken && token !== state.cardToken) {
+    return res.send(successPage('Card desatualizado', 'Este card já foi processado. Verifique o card mais recente no Teams.', 'ℹ️'));
+  }
+
+  const result = dailyState.setPresenter(name.trim());
+  if (!result.success) {
+    return res.send(successPage('Erro', result.reason, '❌'));
+  }
+
+  await Promise.all([
+    postDailyCard(dailyState.getState(), BASE_URL, id, webhookUrl),
+    dailyState.save(),
+  ]);
+
+  res.send(
+    successPage(
+      'Apresentador alterado!',
+      `Agora é a vez de <strong>${result.presenter}</strong>.<br>O card foi atualizado no Teams.`,
+      '🎤'
     )
   );
 });

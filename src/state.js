@@ -8,7 +8,17 @@ const DEFAULT = () => ({
   dailyActive: false,
   skips: [],
   history: [],
+  lastDailyDate: null,
+  cardToken: null,
 });
+
+function todayDate() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: process.env.TZ || 'America/Sao_Paulo' });
+}
+
+function newToken() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
 
 class DailyState {
   constructor(projectId) {
@@ -42,11 +52,17 @@ class DailyState {
     return { success: true };
   }
 
+  hasStartedToday() {
+    return this._s.lastDailyDate === todayDate();
+  }
+
   startDaily() {
     this._s.currentOrder = this._sort(this._s.participants);
     this._s.currentIndex = 0;
     this._s.dailyActive = true;
     this._s.skips = [];
+    this._s.lastDailyDate = todayDate();
+    this._s.cardToken = newToken();
     return this.getState();
   }
 
@@ -65,6 +81,7 @@ class DailyState {
       return { done: true };
     }
     this._s.currentIndex += 1;
+    this._s.cardToken = newToken();
     return { done: false, presenter: this.getCurrentPresenter() };
   }
 
@@ -78,7 +95,21 @@ class DailyState {
     const insertAt = currentIndex + 1;
     if (insertAt >= this._s.currentOrder.length) this._s.currentOrder.push(current);
     else this._s.currentOrder.splice(insertAt, 0, current);
+    this._s.cardToken = newToken();
     return { skipped: current, next: this.getCurrentPresenter(), newOrder: this._s.currentOrder };
+  }
+
+  setPresenter(name) {
+    if (!this._s.dailyActive) return { success: false, reason: 'Nenhuma daily ativa' };
+    const idx = this._s.currentOrder.findIndex(p => p.toLowerCase() === name.toLowerCase());
+    if (idx === -1) return { success: false, reason: 'Participante não encontrado na fila' };
+    if (idx < this._s.currentIndex) return { success: false, reason: 'Participante já apresentou' };
+    if (idx > this._s.currentIndex) {
+      const [person] = this._s.currentOrder.splice(idx, 1);
+      this._s.currentOrder.splice(this._s.currentIndex, 0, person);
+    }
+    this._s.cardToken = newToken();
+    return { success: true, presenter: this._s.currentOrder[this._s.currentIndex] };
   }
 
   _reset() {
@@ -106,7 +137,7 @@ class DailyState {
   }
 
   getState() {
-    const { currentOrder, currentIndex, dailyActive, participants, skips } = this._s;
+    const { currentOrder, currentIndex, dailyActive, participants, skips, lastDailyDate, cardToken } = this._s;
     const current = this.getCurrentPresenter();
     return {
       participants,
@@ -119,6 +150,8 @@ class DailyState {
       skips,
       total: currentOrder.length,
       progress: dailyActive ? currentIndex + 1 : 0,
+      lastDailyDate,
+      cardToken,
     };
   }
 
@@ -136,6 +169,8 @@ class DailyState {
       this._s.dailyActive = doc.dailyActive ?? false;
       this._s.skips = doc.skips ?? [];
       this._s.history = doc.history ?? [];
+      this._s.lastDailyDate = doc.lastDailyDate ?? null;
+      this._s.cardToken = doc.cardToken ?? null;
     }
   }
 

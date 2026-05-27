@@ -20,7 +20,7 @@ function buildProgressBar(current, total) {
  * Main daily card — shows current presenter + queue
  */
 function buildDailyCard(stateData, baseUrl, projectId, skipInfo = null) {
-  const { current, presented, remaining, skips, total, progress } = stateData;
+  const { current, presented, remaining, skips, total, progress, cardToken } = stateData;
   const { day, date } = formatDate();
 
   const skipNotice = skipInfo
@@ -69,8 +69,10 @@ function buildDailyCard(stateData, baseUrl, projectId, skipInfo = null) {
           },
         ];
 
-  const nextUrl = `${baseUrl}/actions/next?project=${projectId}`;
-  const skipUrl = `${baseUrl}/actions/skip?project=${projectId}`;
+  const tokenParam = cardToken ? `&token=${cardToken}` : '';
+  const nextUrl = `${baseUrl}/actions/next?project=${projectId}${tokenParam}`;
+  const skipUrl = `${baseUrl}/actions/skip?project=${projectId}${tokenParam}`;
+  const setPresenterUrl = `${baseUrl}/actions/set-presenter?project=${projectId}${tokenParam}`;
 
   return {
     type: 'AdaptiveCard',
@@ -179,6 +181,11 @@ function buildDailyCard(stateData, baseUrl, projectId, skipInfo = null) {
         type: 'Action.OpenUrl',
         title: '⏭ Pular',
         url: skipUrl,
+      },
+      {
+        type: 'Action.OpenUrl',
+        title: '🎤 Trocar Apresentador',
+        url: setPresenterUrl,
       },
     ],
   };
